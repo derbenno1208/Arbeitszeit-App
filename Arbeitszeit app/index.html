@@ -38,6 +38,9 @@
 
   <button onclick="exportCSV()">Export als CSV</button>
 
+  <button onclick="clearAllEntries()" style="background-color:red;color:white;">Alles löschen</button>
+
+
   <script>
     let entries = JSON.parse(localStorage.getItem("entries")) || [];
 
@@ -127,6 +130,14 @@
   XLSX.writeFile(wb, "arbeitszeiten.xlsx");
 }
 
+    function clearAllEntries() {
+  if (confirm("Willst du wirklich alle Einträge löschen?")) {
+    entries = []; // Array leeren
+    updateStats(); // Statistik zurücksetzen
+    alert("Alle Einträge wurden gelöscht!");
+  }
+
   </script>
 </body>
 </html>
+
