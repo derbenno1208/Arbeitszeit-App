@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arbeitszeit Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2196f3">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { margin: 5px; padding: 8px; }
+    .entry { border-bottom: 1px solid #ccc; padding: 5px 0; }
+    .stats { margin-top: 20px; font-weight: bold; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+</head>
+<body>
+  <h1>Arbeitszeit Tracker</h1>
+
+  <label>Datum: <input type="date" id="date"></label><br>
+  <label>Start: <input type="time" id="start"></label><br>
+  <label>Ende: <input type="time" id="end"></label><br>
+  <label>Pause (Minuten): <input type="number" id="break" value="30"></label><br>
+  <button onclick="addEntry()">Eintragen</button>
+
+  <h2>Einträge</h2>
+  <div id="entries"></div>
+
+  <div class="stats">
+    <p>Gesamtstunden: <span id="total">0</span> h</p>
+    <p>Durchschnitt pro Tag: <span id="avg">0</span> h</p>
+  </div>
+
+  <button onclick="exportExcel()">Export als Excel</button>
+
+
+  <button onclick="exportCSV()">Export als CSV</button>
+
+  <script>
+    let entries = JSON.parse(localStorage.getItem("entries")) || [];
+
+    function addEntry() {
+      const date = document.getElementById("date").value;
+      const start = document.getElementById("start").value;
+      const end = document.getElementById("end").value;
+      const brk = parseInt(document.getElementById("break").value) || 0;
+
+      if (!date || !start || !end) return alert("Bitte alles ausfüllen");
+
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+
+      const startMinutes = sh * 60 + sm;
+      const endMinutes = eh * 60 + em;
+      const workedMinutes = (endMinutes - startMinutes) - brk;
+      const hours = workedMinutes / 60;
+
+      const entry = { date, start, end, break: brk, hours };
+      entries.push(entry);
+      localStorage.setItem("entries", JSON.stringify(entries));
+      renderEntries();
+    }
+
+    function renderEntries() {
+      const container = document.getElementById("entries");
+      container.innerHTML = "";
+      let total = 0;
+      entries.forEach(e => {
+        total += e.hours;
+        const div = document.createElement("div");
+        div.className = "entry";
+        div.textContent = `${e.date}: ${e.start} - ${e.end} (${e.hours.toFixed(2)} h)`;
+        container.appendChild(div);
+      });
+      document.getElementById("total").textContent = total.toFixed(2);
+      document.getElementById("avg").textContent = (entries.length ? (total / entries.length).toFixed(2) : 0);
+    }
+
+    renderEntries();
+
+    // Service Worker registrieren
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+
+    function exportCSV() {
+    if (entries.length === 0) {
+      alert("Keine Einträge vorhanden!");
+      return;
+    }
+
+    let csv = "Datum,Start,Ende,Pause (Minuten),Stunden\n";
+
+    entries.forEach(e => {
+      csv += `${e.date},${e.start},${e.end},${e.break},${e.hours.toFixed(2)}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "arbeitszeiten.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportExcel() {
+  if (entries.length === 0) {
+    alert("Keine Einträge vorhanden!");
+    return;
+  }
+
+  // Daten vorbereiten
+  const data = [
+    ["Datum", "Start", "Ende", "Pause (Minuten)", "Stunden"], // Header
+    ...entries.map(e => [e.date, e.start, e.end, e.break, e.hours.toFixed(2)])
+  ];
+
+  // Neues Workbook erstellen
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Arbeitszeiten");
+
+  // Datei speichern
+  XLSX.writeFile(wb, "arbeitszeiten.xlsx");
+}
+
+  </script>
+</body>
+</html>
